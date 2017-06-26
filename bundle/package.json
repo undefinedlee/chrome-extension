@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "files-to-es5": "^0.1.5",
     "node-pearls": "^0.1.18"
   }
 }
