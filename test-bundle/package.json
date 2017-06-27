@@ -1,0 +1,10 @@
+{
+  "name": "test-extension",
+  "version": "0.0.1",
+  "description": "",
+  "dependencies": {},
+  "devDependencies": {
+    "chrome-extension-bundle": "^0.1.0",
+    "chrome-extension-inject": "^0.1.0"
+  }
+}
