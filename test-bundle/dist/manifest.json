@@ -18,8 +18,10 @@
     "https://www.mafengwo.cn/*"
    ],
    "js": [
-    "pages/mafengwo/file1.js",
-    "pages/mafengwo/file2.js"
+    "loader.js",
+    "test-extension@0.0.1/page-loader.js",
+    "chrome-extension-inject@0.1/page-background.js",
+    "test-extension@0.0.1/content_script_0.js"
    ]
   },
   {
@@ -27,7 +29,10 @@
     "https://www.taobao.cn/*"
    ],
    "js": [
-    "pages/wangwang/file1.js"
+    "loader.js",
+    "test-extension@0.0.1/page-loader.js",
+    "chrome-extension-inject@0.1/page-background.js",
+    "test-extension@0.0.1/content_script_1.js"
    ]
   }
  ]
