@@ -1,5 +1,7 @@
+// @native
 (function(){
     var mods = {};
+    var nativeMods = {};
 
     function require (id){
         var factory = mods[id];
@@ -12,6 +14,14 @@
         }
 
         return factory.exports;
+    }
+
+    function injectRequire(id, isEntry){
+        return {
+            id: id,
+            factory: nativeMods[id],
+            isEntry: isEntry
+        };
     }
 
     // 解析一个模块的内部模块列表
@@ -45,6 +55,7 @@
 
     // 定义一个模块
     function define (id, factory){
+        nativeMods[id] = factory;
         // 
         mods[id] = function(){
             var innerMods = factory(require);
@@ -58,4 +69,5 @@
 
     window.require = require;
     window.define = define;
+    window.injectRequire = injectRequire;
 })();

@@ -1,13 +1,14 @@
 /**
  * 此脚本注入到页面中
  * 拥有页面的全部权限
+ * @inject
  */
 
 var messageDom = document.getElementById(MESSAGE_DOM_ID);
 // 注入脚本
 messageDom.addEventListener("script", function(){
     var commandContent = this.innerText;
-    (new Function(commandContent))()();
+    (new Function(commandContent))();
 });
 
 // 监听背景页消息，并给出响应

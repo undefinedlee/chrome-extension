@@ -78,7 +78,7 @@ chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
     var id = +new Date();
     messageDom.innerText = JSON.stringify({
         id: id,
-        message: message
+        message: request
     });
     messageCallbacks[id] = sendResponse;
     messageDom.dispatchEvent(messageEvent);
@@ -91,14 +91,29 @@ injectBridge();
 var scriptEvent = document.createEvent('Event');
 scriptEvent.initEvent('script', true, true);
 function injectScript(script){
+    if(typeof script === "function"){
+        script = `~${script.toString()}()`;
+    }
     onReady(function(){
-        messageDom.innerText = script.toString();
+        messageDom.innerText = script;
         messageDom.dispatchEvent(scriptEvent);
     });
 }
 
 export default function(scripts){
     scripts.forEach(function(script){
-        injectScript(script);
+        if(typeof script === "function"){
+            injectScript(script);
+        }else if(
+            typeof script === "object" &&
+            typeof script.id === "string" &&
+            typeof script.factory === "function"
+        ){
+            let code = `define("${script.id}", ${script.factory.toString()});`;
+            if(script.isEntry){
+                code += `\nrequire("${script.id}");`;
+            }
+            injectScript(code);
+        }
     });
 }

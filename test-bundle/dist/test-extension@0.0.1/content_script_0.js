@@ -4,14 +4,6 @@ define("test-extension@0.0.1/content_script_0.js", function(require){
         		function(__inner_require__, exports, module){
         			"use strict";
         			
-        			var _pageBackground = require("chrome-extension-inject@0.1/page-background.js");
-        			
-        			var _pageBackground2 = babelHelpers.interopRequireDefault(_pageBackground);
-        			
-        			var _pageLoader = require("test-extension@0.0.1/page-loader.js");
-        			
-        			var _pageLoader2 = babelHelpers.interopRequireDefault(_pageLoader);
-        			
         			var _file = __inner_require__(1 /*pages/mafengwo/file1.js*/);
         			
         			var _file2 = babelHelpers.interopRequireDefault(_file);
@@ -20,24 +12,25 @@ define("test-extension@0.0.1/content_script_0.js", function(require){
         			
         			var _file4 = babelHelpers.interopRequireDefault(_file3);
         			
-        			(0, _pageBackground2.default)([_pageLoader2.default, _file2.default, _file4.default]);
+        			module.exports = [_file2.default, _file4.default];
         		},
         		// pages/mafengwo/file1.js
         		function(__inner_require__, exports, module){
         			"use strict";
         			
-        			module.exports = function () {
-        			    console.log("file1");
-        			};
+        			console.log("file1");
+        			$Kraken.onMessage(function (info) {
+        			    console.log(info);
+        			});
+        			$Kraken.sendMessage({
+        			    name: "page"
+        			});
         		},
         		// pages/mafengwo/file2.js
         		function(__inner_require__, exports, module){
         			"use strict";
         			
-        			module.exports = function () {
-        			    console.log("file2");
-        			};
+        			console.log("file2");
         		}
     ];
 });
-require("test-extension@0.0.1/content_script_0.js");

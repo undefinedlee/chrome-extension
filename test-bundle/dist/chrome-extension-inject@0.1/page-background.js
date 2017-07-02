@@ -10,7 +10,15 @@ define("chrome-extension-inject@0.1/page-background.js", function(require){
         			
         			exports.default = function (scripts) {
         			    scripts.forEach(function (script) {
-        			        injectScript(script);
+        			        if (typeof script === "function") {
+        			            injectScript(script);
+        			        } else if ((typeof script === "undefined" ? "undefined" : babelHelpers.typeof(script)) === "object" && typeof script.id === "string" && typeof script.factory === "function") {
+        			            var code = "define(\"" + script.id + "\", " + script.factory.toString() + ");";
+        			            if (script.isEntry) {
+        			                code += "\nrequire(\"" + script.id + "\");";
+        			            }
+        			            injectScript(code);
+        			        }
         			    });
         			};
         			
@@ -30,7 +38,7 @@ define("chrome-extension-inject@0.1/page-background.js", function(require){
         			 */
         			
         			var messageDom = document.createElement("div");
-        			messageDom.id = MESSAGE_DOM_ID;
+        			messageDom.id = "__$_Kraken_message_dom_$__";
         			messageDom.style.cssText = "display:none;";
         			document.body.appendChild(messageDom);
         			
@@ -96,7 +104,7 @@ define("chrome-extension-inject@0.1/page-background.js", function(require){
         			    var id = +new Date();
         			    messageDom.innerText = JSON.stringify({
         			        id: id,
-        			        message: message
+        			        message: request
         			    });
         			    messageCallbacks[id] = sendResponse;
         			    messageDom.dispatchEvent(messageEvent);
@@ -108,94 +116,100 @@ define("chrome-extension-inject@0.1/page-background.js", function(require){
         			var scriptEvent = document.createEvent('Event');
         			scriptEvent.initEvent('script', true, true);
         			function injectScript(script) {
+        			    if (typeof script === "function") {
+        			        script = "~" + script.toString() + "()";
+        			    }
         			    onReady(function () {
-        			        messageDom.innerText = script.toString();
+        			        messageDom.innerText = script;
         			        messageDom.dispatchEvent(scriptEvent);
         			    });
         			}
         		},
         		// bridge.js
         		function(__inner_require__, exports, module){
-        			'use strict';
+        			module.exports = function () {
+        			    "use strict";
         			
-        			/**
-        			 * 此脚本注入到页面中
-        			 * 拥有页面的全部权限
-        			 */
+        			    /**
+        			     * 此脚本注入到页面中
+        			     * 拥有页面的全部权限
+        			     * @inject
+        			     */
         			
-        			var messageDom = document.getElementById(MESSAGE_DOM_ID);
-        			// 注入脚本
-        			messageDom.addEventListener("script", function () {
-        			    var commandContent = this.innerText;
-        			    new Function(commandContent)()();
-        			});
+        			    var messageDom = document.getElementById("__$_Kraken_message_dom_$__");
+        			    // 注入脚本
+        			    messageDom.addEventListener("script", function () {
+        			        var commandContent = this.innerText;
+        			        new Function(commandContent)();
+        			    });
         			
-        			// 监听背景页消息，并给出响应
-        			var responseEvent = document.createEvent('Event');
-        			responseEvent.initEvent('page-response', true, true);
-        			var listeners = [];
-        			messageDom.addEventListener("background-message", function () {
-        			    var info = this.innerText;
-        			    try {
-        			        info = JSON.parse(info);
-        			    } catch (e) {}
+        			    // 监听背景页消息，并给出响应
+        			    var responseEvent = document.createEvent('Event');
+        			    responseEvent.initEvent('page-response', true, true);
+        			    var listeners = [];
+        			    messageDom.addEventListener("background-message", function () {
+        			        var info = this.innerText;
+        			        try {
+        			            info = JSON.parse(info);
+        			        } catch (e) {}
         			
-        			    if (info) {
-        			        listeners.forEach(function (listener) {
-        			            listener(info.message, function (response) {
-        			                messageDom.innerText = JSON.stringify({
-        			                    id: info.id,
-        			                    response: response
+        			        if (info) {
+        			            listeners.forEach(function (listener) {
+        			                listener(info.message, function (response) {
+        			                    messageDom.innerText = JSON.stringify({
+        			                        id: info.id,
+        			                        response: response
+        			                    });
+        			                    messageDom.dispatchEvent(responseEvent);
         			                });
-        			                messageDom.dispatchEvent(responseEvent);
         			            });
-        			        });
-        			    }
-        			});
-        			
-        			// 给背景页发送消息，并监听响应
-        			var messageCallbacks = {};
-        			messageDom.addEventListener("background-response", function () {
-        			    var info = this.innerText;
-        			    try {
-        			        info = JSON.parse(info);
-        			    } catch (e) {}
-        			    var callback;
-        			    if (info && (callback = messageCallbacks[info.id])) {
-        			        delete requests[info.id];
-        			        callback(info.response);
-        			    }
-        			});
-        			var messageEvent = document.createEvent('Event');
-        			messageEvent.initEvent('page-message', true, true);
-        			
-        			window.$Kraken = {
-        			    onMessage: function onMessage(listener) {
-        			        listeners.push(listener);
-        			    },
-        			    offMessage: function offMessage(listener) {
-        			        var index = listeners.indexOf(listener);
-        			        if (index !== -1) {
-        			            listeners.splice(index, 1);
         			        }
-        			    },
-        			    sendMessage: function sendMessage(message, callback) {
-        			        var id = +new Date();
-        			        messageDom.innerText = JSON.stringify({
-        			            id: id,
-        			            message: message
-        			        });
-        			        if (callback) {
-        			            messageCallbacks[id] = callback;
+        			    });
+        			
+        			    // 给背景页发送消息，并监听响应
+        			    var messageCallbacks = {};
+        			    messageDom.addEventListener("background-response", function () {
+        			        var info = this.innerText;
+        			        try {
+        			            info = JSON.parse(info);
+        			        } catch (e) {}
+        			        var callback;
+        			        if (info && (callback = messageCallbacks[info.id])) {
+        			            delete requests[info.id];
+        			            callback(info.response);
         			        }
-        			        messageDom.dispatchEvent(messageEvent);
-        			    }
+        			    });
+        			    var messageEvent = document.createEvent('Event');
+        			    messageEvent.initEvent('page-message', true, true);
+        			
+        			    window.$Kraken = {
+        			        onMessage: function onMessage(listener) {
+        			            listeners.push(listener);
+        			        },
+        			        offMessage: function offMessage(listener) {
+        			            var index = listeners.indexOf(listener);
+        			            if (index !== -1) {
+        			                listeners.splice(index, 1);
+        			            }
+        			        },
+        			        sendMessage: function sendMessage(message, callback) {
+        			            var id = +new Date();
+        			            messageDom.innerText = JSON.stringify({
+        			                id: id,
+        			                message: message
+        			            });
+        			            if (callback) {
+        			                messageCallbacks[id] = callback;
+        			            }
+        			            messageDom.dispatchEvent(messageEvent);
+        			        }
+        			    };
+        			
+        			    // 通知背景页bridge注入成功
+        			    var readyEvent = document.createEvent('Event');
+        			    readyEvent.initEvent('inject-ready', true, true);
+        			    messageDom.dispatchEvent(readyEvent);
         			};
-        			
-        			// 通知背景页bridge注入成功
-        			var readyEvent = document.createEvent('Event');
-        			readyEvent.initEvent('inject-ready', true, true);
-        			messageDom.dispatchEvent(readyEvent);
         		}
     ];
 });
