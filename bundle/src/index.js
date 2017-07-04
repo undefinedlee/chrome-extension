@@ -361,7 +361,7 @@ export default async function(src, dist){
             }else{}
         }
 
-        var copyFiles = glob("**/*.(css|png|jpeg|jpg|gif)", {
+        var copyFiles = glob.sync("**/*.@(css|png|jpeg|jpg|gif)", {
             cwd: src
         });
 
