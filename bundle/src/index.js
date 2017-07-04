@@ -4,6 +4,7 @@ import utils from "node-pearls";
 import rimraf from "rimraf";
 import bundle from "enjoy-bundle";
 import * as babel from "babel-core";
+import htmlParse from "parse5";
 import {
     overWriteTlp as tpl,
     overWriteJoin as join
@@ -24,7 +25,7 @@ const tpls = (function(files){
     // bundle时，独立模块的包装结构
     "mod",
     // 注入到页面中的脚本需要包装在函数内
-    "page-package",
+    "inject-package",
     // content script运行时loader
     "loader",
     //
@@ -50,6 +51,10 @@ function isInject(ast){
     return ast.comments.some(comment => /@inject\b/.test(comment.value));
 }
 
+function runEntry(script){
+    return `\nrequire("${script}");`;
+}
+
 export default async function(src, dist){
     // 临时中转文件夹
     const tempDir = path.join(path.dirname(src), ".chrome-extension-bundle");
@@ -58,8 +63,9 @@ export default async function(src, dist){
     utils.mkdirs.sync(tempDir);
     // 清空dist目录
     rimraf.sync(dist);
+    utils.mkdirs.sync(dist);
     // 将src中的文件拷贝到临时中转文件夹
-    const files = glob.sync("**/*", {
+    const files = glob.sync("**/*.js", {
         cwd: src,
         nodir: true
     });
@@ -85,8 +91,18 @@ export default async function(src, dist){
         path.join(tempDir, "page-babel-helpers.js"),
         "// @inject\n" + tpls["babel-helpers"]
     );
+    // 将插件中运行需要的loader和babel-helpers拷贝到目标目录
+    fs.writeFileSync(
+        path.join(dist, "loader.js"),
+        tpls["loader"]
+    );
+    fs.writeFileSync(
+        path.join(dist, "babel-helpers.js"),
+        tpls["babel-helpers"]
+    );
+    const commonScripts = ["loader.js", "babel-helpers.js"];
     // 插件配置文件
-    var manifest = utils.readJson.sync(path.join(tempDir, "manifest.json"));
+    var manifest = utils.readJson.sync(path.join(src, "manifest.json"));
     var entries = [];
     // 分析content scripts
     manifest["content_scripts"].forEach(function(contentScript, index){
@@ -126,9 +142,37 @@ export default async function(src, dist){
         entries.push(contentPageName);
     });
 
-    manifest.background.scripts.forEach(function(file, index){
-        entries.push(file);
-    });
+    if(manifest.background){
+        manifest.background.scripts.forEach(function(file, index){
+            entries.push(file);
+        });
+    }
+
+    var optionsPageDocument;
+    var optionsPageScripts = [];
+    if(manifest["options_page"]){
+        let optionsPage = path.join(src, manifest["options_page"]);
+        let code = fs.readFileSync(optionsPage, "utf8");
+        optionsPageDocument = htmlParse.parse(code);
+
+        (function queryDom(dom){
+            if(dom.tagName === "script"){
+                let srcAttr = dom.attrs.find(attr => attr.name === "src");
+                if(srcAttr){
+                    optionsPageScripts.push(srcAttr.value);
+                    return false;
+                }
+            }
+
+            if(dom.childNodes){
+                dom.childNodes = dom.childNodes.filter(queryDom);
+            }
+
+            return true;
+        })(optionsPageDocument);
+
+        entries = entries.concat(optionsPageScripts);
+    }
 
     var depsHash = {};
 
@@ -185,7 +229,7 @@ export default async function(src, dist){
                     }
 
                     if(isInject(result.ast)){
-                        return tpl(tpls["page-package"], {
+                        return tpl(tpls["inject-package"], {
                             content: result.code
                         });
                     }
@@ -208,18 +252,9 @@ export default async function(src, dist){
                 });
             }]
         }
-    }, function(){
+    }, async function(){
         rimraf.sync(tempDir);
         rimraf.sync(path.join(dist, ".package-list.json"));
-
-        fs.writeFileSync(
-            path.join(dist, "loader.js"),
-            tpls["loader"]
-        );
-        fs.writeFileSync(
-            path.join(dist, "babel-helpers.js"),
-            tpls["babel-helpers"]
-        );
 
         var packageName = [packageJson.name, packageJson.version].join("@");
 
@@ -255,30 +290,88 @@ export default async function(src, dist){
             var contentPageCode = fs.readFileSync(contentPageFile, "utf8");
             contentPageCode = contentPageCode.replace(/\/\/\s*#content\-scripts#\s*\n/, injectScripts.map(function(file){
                 return `pages.push(injectRequire("${file.file}", ${file.isEntry}));\n`;
-            }).join("")) + `\nrequire("${contentPageName}");`;
+            }).join("")) + runEntry(contentPageName);
             fs.writeFileSync(contentPageFile, contentPageCode);
 
-            contentScript.js = ["loader.js", "babel-helpers.js"].concat(files.reverse());
+            contentScript.js = [].concat(commonScripts, files.reverse());
         });
 
-        var backgroundScripts = [];
-        manifest.background.scripts.forEach(function(script){
-            script = [packageName, script].join("/");
+        if(manifest.background){
+            let backgroundScripts = [];
+            manifest.background.scripts.forEach(function(script){
+                script = [packageName, script].join("/");
 
-            (function _(file){
-                if(files.indexOf(file) === -1){
-                    backgroundScripts.push(file);
-                    if(depsHash[file]){
-                        depsHash[file].forEach(_);
+                (function _(file){
+                    if(backgroundScripts.indexOf(file) === -1){
+                        backgroundScripts.push(file);
+                        if(depsHash[file]){
+                            depsHash[file].forEach(_);
+                        }
                     }
-                }
-            })(script);
+                })(script);
 
-            var code = fs.appendFileSync(path.join(dist, script), `\nrequire("${script}");`);
-            return script;
-        });
-        manifest.background.scripts = ["loader.js", "babel-helpers.js"].concat(backgroundScripts.reverse());
+                fs.appendFileSync(path.join(dist, script), runEntry(script));
+            });
+            manifest.background.scripts = [].concat(commonScripts, backgroundScripts.reverse());
+        }
 
         fs.writeFileSync(path.join(dist, "manifest.json"), JSON.stringify(manifest, null, " "));
+
+        if(optionsPageDocument){
+            let $optionsPageScripts = [].concat(commonScripts);
+            optionsPageScripts.forEach(function(script){
+                script = [packageName, script].join("/");
+
+                (function _(file){
+                    if($optionsPageScripts.indexOf(file) === -1){
+                        $optionsPageScripts.push(file);
+                        if(depsHash[file]){
+                            depsHash[file].forEach(_);
+                        }
+                    }
+                })(script);
+
+                fs.appendFileSync(path.join(dist, script), runEntry(script));
+            });
+
+            let optionsPageBody = (function findBody(node){
+                if(node.tagName === "body"){
+                    return node;
+                }else if(node.childNodes){
+                    let body;
+                    node.childNodes.forEach(function(node){
+                        var result = findBody(node);
+                        if(result){
+                            body = result;
+                        }
+                    });
+                    if(body){
+                        return body;
+                    }
+                }
+            })(optionsPageDocument);
+
+            if(optionsPageBody){
+                let scriptFragment = htmlParse.parseFragment(optionsPageBody, $optionsPageScripts.map(function(script){
+                    return `<script type="text/javascript" src="${script}"></script>`;
+                }).join(""));
+                optionsPageBody.childNodes = optionsPageBody.childNodes.concat(scriptFragment.childNodes);
+                let optionsPageCode = htmlParse.serialize(optionsPageDocument);
+                fs.writeFileSync(path.join(dist, manifest["options_page"]), optionsPageCode);
+            }else{}
+        }
+
+        var copyFiles = glob("**/*.(css|png|jpeg|jpg|gif)", {
+            cwd: src
+        });
+
+        await utils.copyFiles(copyFiles.map(function(file){
+            return {
+                src: path.join(src, file),
+                dist: path.join(dist, file)
+            };
+        }));
+
+        console.log("编译完成");
     });
 }
