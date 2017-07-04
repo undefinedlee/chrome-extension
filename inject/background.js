@@ -6,7 +6,7 @@ var listeners = [];
 // 监听页面消息
 chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
     listeners.forEach(function(listener){
-        listener(sender.tab.id, request);
+        listener(sender.tab.id, request, sendResponse);
     });
 });
 

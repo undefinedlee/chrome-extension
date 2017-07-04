@@ -43,7 +43,7 @@ messageDom.addEventListener("background-response", function(){
     }catch(e){}
     var callback;
     if(info && (callback = messageCallbacks[info.id])){
-        delete requests[info.id];
+        delete messageCallbacks[info.id];
         callback(info.response);
     }
 });
