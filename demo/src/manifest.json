@@ -1,0 +1,34 @@
+{
+    "name": "test-extension",
+    "version": "0.1",
+    "manifest_version": 2,
+    "description": "",
+    "permissions": [
+        "http://*/",
+        "https://*/"
+    ],
+    "background": {
+        "scripts": [
+            "background/background.js"
+        ]
+    },
+    "icons": {
+        "16": "images/icon-16.png",
+        "48": "images/icon-48.png"
+    },
+    "browser_action": {
+        "default_icon": "images/icon-32.png",
+        "default_title": "Kraken"
+    },
+    "options_page": "options.html",
+    "content_scripts": [
+        {
+            "matches": [
+                "https://www.mafengwo.cn/*"
+            ],
+            "js": [
+                "pages/mafengwo/index.js"
+            ]
+        }
+    ]
+}
