@@ -288,7 +288,7 @@ export default async function(src, dist){
             
             var contentPageFile = path.join(dist, contentPageName);
             var contentPageCode = fs.readFileSync(contentPageFile, "utf8");
-            contentPageCode = contentPageCode.replace(/\/\/\s*#content\-scripts#\s*\n/, injectScripts.map(function(file){
+            contentPageCode = contentPageCode.replace(/\/\/\s*#content\-scripts#\s*\n/, injectScripts.reverse().map(function(file){
                 return `pages.push(injectRequire("${file.file}", ${file.isEntry}));\n`;
             }).join("")) + runEntry(contentPageName);
             fs.writeFileSync(contentPageFile, contentPageCode);
