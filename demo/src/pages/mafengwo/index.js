@@ -1,22 +1,18 @@
 import { Page } from "chrome-extension-kraken";
 
 Page("mafengwo", function(page){
-    // 监听背景页send-message事件
-    page.onMessage("send-message", function (message) {
-        console.log(message);
-    });
     // 发送新消息给背景页
-    page.sendMessage("new-message", "hello background");
+    page.sendMessage(
+        // 消息名称
+        "new-message",
+        // 消息内容
+        "hello background"
+    );
 
-    // 响应背景页message的请求
-    page.onRequest("message", function(params){
-        return "no message";
-    });
-
-    // 请求背景页获取时间
-    page.request("time", {
-        myName: "page mafengwo"
-    }, function(response){
-        console.log(response);
+    page.onMessage("send-message", function (message) {
+        console.log(`来自背景页的消息：${message}`);
+        // 
+        document.getElementsByClassName("_j_content")[0].value = message;
+        document.getElementsByClassName("_j_send_msg")[0].click();
     });
 });
