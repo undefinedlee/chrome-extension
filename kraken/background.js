@@ -1,18 +1,24 @@
 import Background from "chrome-extension-inject/background";
 
-var registerPages = {};
+var openPages = {};
 var listeners = {};
 var requestListeners = {};
 function getPageName(pageId){
-    return Object.keys(registerPages).find(pageName => registerPages[pageName] === pageId);
+    return Object.keys(openPages).find(pageName => openPages[pageName] === pageId);
 }
 Background.onMessage(function (pageId, info, callback) {
     switch(info.type){
-        case "$register":
-            registerPages[info.value] = pageId;
+        case "$open":
+            openPages[info.value.name] = pageId;
             callback();
-            if(listeners["$register"]){
-                listeners["$register"].forEach(listener => listener(info.value));
+            if(listeners["$open"]){
+                listeners["$open"].forEach(listener => listener(info.value.name, info.value.info));
+            }
+            return;
+        case "$close":
+            delete openPages[info.value];
+            if(listeners["$close"]){
+                listeners["$close"].forEach(listener => listener(info.value));
             }
             return;
         case "$request":
@@ -52,7 +58,7 @@ export default {
         listeners[messageName].push(listener);
     },
     sendMessage: function(pageName, messageName, data){
-        var pageId = registerPages[pageName];
+        var pageId = openPages[pageName];
         if(typeof pageId !== "undefined"){
             Background.sendMessage(pageId, {
                 type: messageName,
@@ -66,7 +72,7 @@ export default {
         requestListeners[requestName] = listener;
     },
     request: function(pageName, requestName, params, callback){
-        var pageId = registerPages[pageName];
+        var pageId = openPages[pageName];
         if(typeof pageId !== "undefined"){
             Background.sendMessage(pageId, {
                 type: "$request",

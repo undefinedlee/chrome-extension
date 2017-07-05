@@ -51,9 +51,21 @@ export default function (name, callback) {
     });
 
     $Kraken.sendMessage({
-        type: "$register",
-        value: name
+        type: "$open",
+        value: {
+            name: name,
+            info: {
+                url: location.href
+            }
+        }
     }, function(){
         callback(page);
+    });
+    // 页面离开
+    window.addEventListener("beforeunload", function(){
+        $Kraken.sendMessage({
+            type: "$close",
+            value: name
+        });
     });
 }
