@@ -1,4 +1,4 @@
-import Background from "chrome-extension-kraken/background";
+import { Background } from "chrome-extension-kraken";
 
 // 监听页面的新消息
 Background.onMessage("new-message", function(pageName, message){

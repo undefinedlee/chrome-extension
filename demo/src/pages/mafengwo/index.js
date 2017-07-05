@@ -1,4 +1,5 @@
-import Page from "chrome-extension-kraken/page";
+import { Page } from "chrome-extension-kraken";
+
 Page("mafengwo", function(page){
     // 监听背景页send-message事件
     page.onMessage("send-message", function (message) {
