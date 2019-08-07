@@ -7,7 +7,7 @@
 var messageDom = document.getElementById(MESSAGE_DOM_ID);
 // 注入脚本
 messageDom.addEventListener("script", function(){
-    var commandContent = this.innerText;
+    var commandContent = this.value;
     (new Function(commandContent))();
 });
 
@@ -16,7 +16,7 @@ var responseEvent = document.createEvent('Event');
 responseEvent.initEvent('page-response', true, true);
 var listeners = [];
 messageDom.addEventListener("background-message", function(){
-    var info = this.innerText;
+    var info = this.value;
     try{
         info = JSON.parse(info);
     }catch(e){}
@@ -24,7 +24,7 @@ messageDom.addEventListener("background-message", function(){
     if(info){
         listeners.forEach(function(listener){
             listener(info.message, function(response){
-                messageDom.innerText = JSON.stringify({
+                messageDom.value = JSON.stringify({
                     id: info.id,
                     response: response
                 });
@@ -37,7 +37,7 @@ messageDom.addEventListener("background-message", function(){
 // 给背景页发送消息，并监听响应
 var messageCallbacks = {};
 messageDom.addEventListener("background-response", function(){
-    var info = this.innerText;
+    var info = this.value;
     try{
         info = JSON.parse(info);
     }catch(e){}
@@ -62,7 +62,7 @@ window.$Kraken = {
     },
     sendMessage: function(message, callback){
         var id = +new Date();
-        messageDom.innerText = JSON.stringify({
+        messageDom.value = JSON.stringify({
             id: id,
             message: message
         });

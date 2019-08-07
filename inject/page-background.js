@@ -11,7 +11,7 @@ function injectBridge(){
 }
 
 // 创建用于通信的dom节点
-var messageDom = document.createElement("div");
+var messageDom = document.createElement("textarea");
 messageDom.id = MESSAGE_DOM_ID;
 messageDom.style.cssText = "display:none;";
 document.body.appendChild(messageDom);
@@ -40,7 +40,7 @@ messageDom.addEventListener("inject-ready", function(){
 var responseEvent = document.createEvent('Event');
 responseEvent.initEvent('background-response', true, true);
 messageDom.addEventListener("page-message", function(){
-    var info = this.innerText;
+    var info = this.value;
     try{
         info = JSON.parse(info);
     }catch(e){}
@@ -48,7 +48,7 @@ messageDom.addEventListener("page-message", function(){
     if(info){
         var id = info.id;
         chrome.extension.sendRequest(info.message, function(response) {
-            messageDom.innerText = JSON.stringify({
+            messageDom.value = JSON.stringify({
                 id: id,
                 response: response
             });
@@ -60,7 +60,7 @@ messageDom.addEventListener("page-message", function(){
 // 将页面响应返回给背景
 var messageCallbacks = {};
 messageDom.addEventListener("page-response", function(){
-    var info = this.innerText;
+    var info = this.value;
     try{
         info = JSON.parse(info);
     }catch(e){}
@@ -76,7 +76,7 @@ var messageEvent = document.createEvent('Event');
 messageEvent.initEvent('background-message', true, true);
 chrome.extension.onRequest.addListener(function(request, sender, sendResponse) {
     var id = +new Date();
-    messageDom.innerText = JSON.stringify({
+    messageDom.value = JSON.stringify({
         id: id,
         message: request
     });
@@ -95,7 +95,7 @@ function injectScript(script){
         script = `~${script.toString()}()`;
     }
     onReady(function(){
-        messageDom.innerText = script;
+        messageDom.value = script;
         messageDom.dispatchEvent(scriptEvent);
     });
 }
